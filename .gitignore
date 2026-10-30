@@ -17,3 +17,7 @@ mlflow_store/
 # Archivos del sistema
 .DS_Store
 Thumbs.db
+
+# Datos (se descargan del ANDA, ver data/README.md)
+data/raw/
+data/processed/
