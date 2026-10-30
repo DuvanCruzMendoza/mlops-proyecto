@@ -7,3 +7,26 @@ datos:
   patron_archivo: EAM_ANONIMIZADA_{anio}.xlsx
   anios: [2020, 2021, 2022, 2023, 2024]
   salida: data/processed/eam_2020_2024.csv  # CSV unificado que genera scripts/load_data.py
+
+division:
+  anio_prueba: 2024         # se entrena con los años anteriores y se evalúa con este (simula "llega un año nuevo")
+
+variables:
+  usar_rezago: true         # true: usa la producción del año anterior del mismo establecimiento (modelo panel)
+                            # false: solo variables del mismo año (modelo transversal)
+
+modelo:
+  tipo: hist_gradient_boosting   # ridge | hist_gradient_boosting
+  parametros:                    # argumentos del estimador de sklearn (cámbialos si cambias el tipo)
+    max_iter: 400
+    learning_rate: 0.05
+    random_state: 42             # también se registra como semilla en MLflow
+  # Ejemplo para ridge:
+  # tipo: ridge
+  # parametros:
+  #   alpha: 1.0
+
+mlflow:
+  tracking_uri: http://localhost:5000      # servidor de MLflow de services/. Sin servidor: sqlite:///mlflow.db. MLFLOW_TRACKING_URI, si existe, tiene prioridad
+  experimento: eam-imputacion-produccion   # nombre del experimento donde se agrupan los runs
+  nombre_run: imputacion-prodbind          # nombre de cada run dentro del experimento

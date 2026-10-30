@@ -95,6 +95,28 @@ def cargar_datos(carpeta=None, anios=None, patron=None):
     return df
 
 
+def cargar_procesados(cfg_datos=None):
+    """Lee el CSV unificado (datos.salida) y valida sus columnas. Si no existe, lo crea desde los Excel.
+
+    Es la función que usa el flow: el CSV carga en menos de un segundo; los Excel, en varios.
+    """
+    if cfg_datos is None:
+        cfg_datos = leer_config()["datos"]
+    salida = Path(cfg_datos["salida"])
+    if not salida.exists():
+        print(f"No existe {salida}; se genera desde los Excel de {cfg_datos['carpeta']}")
+        df = cargar_datos(cfg_datos["carpeta"], cfg_datos["anios"], cfg_datos["patron_archivo"])
+        salida.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(salida, index=False)
+        return df
+
+    df = pd.read_csv(salida)
+    faltan = [c for c in COLUMNAS if c not in df.columns]
+    if faltan:
+        raise ValueError(f"A {salida} le faltan columnas: {faltan}. Bórralo y vuelve a ejecutar load_data.py")
+    return df[COLUMNAS]
+
+
 def resumen(df):
     """Datos básicos del dataset, para imprimir o registrar en Prefect y MLflow."""
     return {
