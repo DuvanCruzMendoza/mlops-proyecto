@@ -1,0 +1,22 @@
+# Selección de variables del experimento (actividad 2).
+# Cada run registra en MLflow el alias usado (features) y el número de variables (n_features).
+#
+#   ALL:     todas las variables: las 10 numéricas, el departamento (dpto) y la actividad (ciiu4).
+#   NUMERIC: solo las 10 variables numéricas.
+#   CUSTOM:  solo las columnas que se listan en `custom`, con los nombres del CSV.
+#
+# Si variables.usar_rezago es true en config.yaml, en los tres casos se agregan las
+# variables del año anterior (producción, personal, salarios y energía).
+
+seleccion: ALL
+
+custom:          # solo se usa con seleccion: CUSTOM
+  - PERSOCU      # personal ocupado
+  - SALARPER     # salarios del personal permanente
+  - EELEC        # energía eléctrica consumida
+  - ciiu4        # actividad económica
+
+# Columnas disponibles para CUSTOM:
+#   numéricas:   PERSOCU, PERTOTAL, SALARPER, PRESSPER, REMUTEMP, PERAPREN,
+#                EELEC, ACTIVFI, DEPRECIA, INVEBRTA
+#   categóricas: dpto, ciiu4

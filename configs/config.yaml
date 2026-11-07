@@ -1,5 +1,6 @@
 # Configuración del proyecto: imputación de la producción bruta (EAM, DANE).
-# Todo lo que puede cambiar (datos, modelo, MLflow) vive aquí, no en el código.
+# Todo lo que puede cambiar (datos, modelos, umbrales, MLflow) vive aquí, no en el código.
+# La selección de variables está en configs/features.yaml.
 # Las rutas son relativas a la raíz del repositorio (desde ahí se ejecuta todo).
 
 datos:
@@ -12,21 +13,37 @@ division:
   anio_prueba: 2024         # se entrena con los años anteriores y se evalúa con este (simula "llega un año nuevo")
 
 variables:
-  usar_rezago: true         # true: usa la producción del año anterior del mismo establecimiento (modelo panel)
-                            # false: solo variables del mismo año (modelo transversal)
+  usar_rezago: true         # usa los datos del año anterior del mismo establecimiento (ver configs/features.yaml)
 
-modelo:
-  tipo: hist_gradient_boosting   # ridge | hist_gradient_boosting
-  parametros:                    # argumentos del estimador de sklearn (cámbialos si cambias el tipo)
-    max_iter: 400
-    learning_rate: 0.05
-    random_state: 42             # también se registra como semilla en MLflow
-  # Ejemplo para ridge:
-  # tipo: ridge
-  # parametros:
-  #   alpha: 1.0
+# Modelos que compara el pipeline de entrenamiento. Cada uno es un run en MLflow.
+# Solo el de menor MAE puede pasar a champion. Para quitar uno, coméntalo.
+candidatos:
+  - nombre_run: ridge
+    tipo: ridge
+    parametros:
+      alpha: 1.0
+  - nombre_run: hgb
+    tipo: hist_gradient_boosting
+    parametros:
+      max_iter: 400
+      learning_rate: 0.05
+      random_state: 42
+
+# Registro en el Model Registry de MLflow y criterio para ser champion.
+# El modelo es de regresión, así que en lugar del AUC se usa el MAE (en log): menor es mejor.
+registro:
+  nombre_modelo: eam-imputacion-prodbind
+  max_mae_log: 0.30                 # MAE máximo para ser champion
+  exigir_superar_linea_base: true   # además, debe tener menor MAE que la línea base (producción del año anterior)
+  # y siempre debe tener menor MAE que el champion vigente
+
+inferencia:
+  anio: 2024                        # año del que se toma el lote de establecimientos
+  tamano_lote: 500                  # establecimientos que se imputan en cada ejecución diaria
+  semilla: null                     # null: un lote distinto cada día. Un número: siempre el mismo lote
+  umbral_alerta: 0.5                # marca si |log(reportado / estimado)| > 0.5 (diferencia de ~65 % o más)
+  carpeta_salida: data/predicciones # un CSV por día: predicciones_AAAA-MM-DD.csv (no se versiona)
 
 mlflow:
-  tracking_uri: http://localhost:5000      # servidor de MLflow de services/. Sin servidor: sqlite:///mlflow.db. MLFLOW_TRACKING_URI, si existe, tiene prioridad
-  experimento: eam-imputacion-produccion   # nombre del experimento donde se agrupan los runs
-  nombre_run: imputacion-prodbind          # nombre de cada run dentro del experimento
+  tracking_uri: http://localhost:5000  # servidor de MLflow de services/. MLFLOW_TRACKING_URI, si existe, tiene prioridad
+  experimento: eam-imputacion-a2       # entrenamiento (fase=entrenamiento) e inferencia (fase=inferencia)
