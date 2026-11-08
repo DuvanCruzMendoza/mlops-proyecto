@@ -148,60 +148,60 @@ Las evidencias se organizan en cuatro grupos:
 
 - **Figura 1.** Repositorio `mlops-proyecto` en GitHub, con su estructura y los archivos `README.md`, `pyproject.toml` y `poetry.lock`.
 
-  ![Figura 1. Repositorio mlops-proyecto en GitHub](img/fig01-github.png)
+  ![Figura 1. Repositorio mlops-proyecto en GitHub](img/a1/fig01-github.png)
 
 - **Figura 2.** Configuración de colaboradores en GitHub, con Natalia y Paula incorporadas al repositorio.
 
-  ![Figura 2. Configuracion de colaboradores](img/fig02-colaboradores.png)
+  ![Figura 2. Configuracion de colaboradores](img/a1/fig02-colaboradores.png)
 
 - **Figura 3.** Instalación y verificación del entorno con Poetry en el equipo donde se realizó la configuración inicial.
 
-  ![Figura 3. Instalacion y verificacion del entorno en Poetry](img/fig03-entorno.png)
+  ![Figura 3. Instalacion y verificacion del entorno en Poetry](img/a1/fig03-entorno.png)
 
 - **Figuras 4 y 5.** Verificación de `poetry install` en las clonaciones de Natalia y Paula.
 
-  ![Figura 4. Instalacion y verificacion del entorno en Poetry Colaborador 2](img/fig04-installp.png)
+  ![Figura 4. Instalacion y verificacion del entorno en Poetry Colaborador 2](img/a1/fig04-installp.png)
 
-  ![Figura 5. Instalacion y verificacion del entorno en Poetry Colaborador 3](img/fig05-installn.png)
+  ![Figura 5. Instalacion y verificacion del entorno en Poetry Colaborador 3](img/a1/fig05-installn.png)
 
 
 **Paso 2. Datos**
 
 - **Figura 6.** `git status` antes del commit, que muestra que los Excel y el CSV no se versionan, y publicación del commit `dd52b82`.
 
-  ![Figura 6. Git Status antes del cargue de datos](img/fig06-gitstatus.png)
+  ![Figura 6. Git Status antes del cargue de datos](img/a1/fig06-gitstatus.png)
 
 **Paso 3. Servicios y ejecución del flujo de prueba**
 
 - **Figura 7.** Ejecución del flujo `prueba` en Prefect, con estado `Completed` y el log `Suma de 1 a 5 = 15`.
 
-  ![Figura 7. Ejecucion del flujo prueba en Prefect](img/fig07-prueba.png)
+  ![Figura 7. Ejecucion del flujo prueba en Prefect](img/a1/fig07-prueba.png)
 
 - **Figura 8.** Ejecución `prueba-mlflow` en MLflow, con el parámetro `n = 5` y la métrica `suma = 15`.
 
-  ![Figura 8. Ejecucion del flujo prueba en MLFlow](img/fig08-pruebamlflow.png)
+  ![Figura 8. Ejecucion del flujo prueba en MLFlow](img/a1/fig08-pruebamlflow.png)
 
 **Paso 4. Pipeline de entrenamiento**
 
 - **Figura 9.** Terminal con la ejecución de `experimento_flow.py`, que termina con `Run de MLflow: 9415279e… | MAE log = 0.2041 (línea base 0.2620)`.
 
-  ![Figura 9. Terminal con ejecucion de experimento_flow](img/fig09-experimentoflow.png)
+  ![Figura 9. Terminal con ejecucion de experimento_flow](img/a1/fig09-experimentoflow.png)
 
 - **Figura 10.** Run `giga-boar` del flow `eam-imputacion-v1` en Prefect: estado `Completed`, 37 s y dos tareas en orden (`cargar_datos` → `entrenar_y_registrar`).
 
-  ![Figura 10. Ejecucuon de imputacion en Prefect](img/fig10-gigaboar.png)
+  ![Figura 10. Ejecucuon de imputacion en Prefect](img/a1/fig10-gigaboar.png)
 
 - **Figura 11.** Logs del run en Prefect, con `Datos cargados: 34552 filas, 7659 establecimientos…`.
 
-  ![Figura 11. Log de ejecucion de imputacion en Prefect](img/fig11-datoscargados.png)
+  ![Figura 11. Log de ejecucion de imputacion en Prefect](img/a1/fig11-datoscargados.png)
 
 - **Figura 12.** Artefacto `eam-imputacion-v1` en Prefect, con su historial y su contenido (modelo, métricas e ID del run).
 
-  ![Figura 12. Artefacto ejecucion de imputacion en Prefect](img/fig12-eamimputaciones.png)
+  ![Figura 12. Artefacto ejecucion de imputacion en Prefect](img/a1/fig12-eamimputaciones.png)
 
 - **Figura 13.** Run `imputacion-prodbind` en MLflow (experimento `eam-imputacion-produccion`): parámetros, métricas y artefactos (`model` y `datos/resumen_datos.json`).
 
-  ![Figura 13. Ejecucion de imputacion en MLFlow](img/fig13-imputacionprodbind.png)
+  ![Figura 13. Ejecucion de imputacion en MLFlow](img/a1/fig13-imputacionprodbind.png)
 
 **Referencias del repositorio**
 
