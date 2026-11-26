@@ -39,11 +39,18 @@ registro:
 
 inferencia:
   anio: 2024                        # año del que se toma el lote de establecimientos
-  tamano_lote: 500                  # establecimientos que se imputan en cada ejecución diaria
-  semilla: null                     # null: un lote distinto cada día. Un número: siempre el mismo lote
+  tamano_lote: 1500                 # establecimientos por lote (1500: con 500 el control ya alertaba por azar)
+  semilla: 42                       # lote reproducible: 0.0, 0.3 y 0.6 parten del mismo lote base
+  nivel_drift: 0.0                  # drift emulado (0.0 a 1.0), ver scripts/emulacion_drift.py
   umbral_alerta: 0.5                # marca si |log(reportado / estimado)| > 0.5 (diferencia de ~65 % o más)
   carpeta_salida: data/predicciones # un CSV por día: predicciones_AAAA-MM-DD.csv (no se versiona)
 
 mlflow:
   tracking_uri: http://localhost:5000  # servidor de MLflow de services/. MLFLOW_TRACKING_URI, si existe, tiene prioridad
   experimento: eam-imputacion-a2       # entrenamiento (fase=entrenamiento) e inferencia (fase=inferencia)
+
+# Actividad 3: monitoreo de drift (lotes y reportes en data/monitoreo/, no se versionan).
+monitoreo:
+  carpeta: data/monitoreo
+  umbral_features: 0.50             # alerta si la fracción de variables con drift (Evidently) SUPERA este valor
+  umbral_evento_pp: 10              # drift del objetivo si la tasa de PRODBIND > P75 cambia más de 10 puntos

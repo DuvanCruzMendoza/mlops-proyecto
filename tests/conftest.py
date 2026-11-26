@@ -50,6 +50,7 @@ def entorno(tmp_path, monkeypatch):
     cfg["registro"]["max_mae_log"] = 1.0
     cfg["registro"]["exigir_superar_linea_base"] = False
     cfg["inferencia"].update({"tamano_lote": 50, "semilla": 1, "carpeta_salida": (tmp_path / "pred").as_posix()})
+    cfg["monitoreo"]["carpeta"] = (tmp_path / "monitoreo").as_posix()  # lotes y reportes de prueba
 
     rutas = {"config": tmp_path / "config.yaml", "features": tmp_path / "features.yaml", "dir": tmp_path}
     rutas["config"].write_text(yaml.safe_dump(cfg, allow_unicode=True), encoding="utf-8")
