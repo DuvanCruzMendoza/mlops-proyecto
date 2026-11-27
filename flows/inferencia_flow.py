@@ -1,6 +1,10 @@
-"""Actividad 2: pipeline de inferencia (se ejecuta cada día, ver flows/desplegar.py).
+"""Actividades 2 y 3: pipeline de inferencia (se ejecuta cada día, ver flows/desplegar.py).
 
-Pasos: cargar modelo champion → ingesta del lote → predicción → guardar CSV → registrar en MLflow
+Pasos: cargar champion → ingesta del lote → drift emulado → predicción → guardar CSV y copia del lote → registrar en MLflow
+
+Actividad 3: el lote sale de la parte de prueba (division.anio_prueba) y se le aplica un drift emulado
+controlado por inferencia.nivel_drift (ver scripts/emulacion_drift.py). La copia del lote puntuado se
+guarda en data/monitoreo/lotes/lote_nivel_X.csv para los flows de drift.
 
 Caso de uso: imputar la producción bruta de un lote de establecimientos. El lote se simula con
 una muestra de la EAM del año `inferencia.anio`, como si fueran establecimientos que no
@@ -35,7 +39,9 @@ from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
 
 from scripts.features import agregar_rezago, calcular_variables
+from scripts.emulacion_drift import emular_drift
 from scripts.load_data import OBJETIVO, cargar_procesados
+from scripts.monitoreo import IDENTIFICADORES_LOTE, construir_referencia, ruta_lote
 
 CONFIG = "configs/config.yaml"
 
@@ -52,13 +58,16 @@ def cargar_champion(cfg):
 
 @task
 def ingesta(cfg):
-    """Toma un lote de establecimientos del año de inferencia, con los datos de su año anterior."""
+    """Lote base de la parte de prueba (año de prueba, con datos del año anterior) y drift emulado."""
     inf = cfg["inferencia"]
     df = cargar_procesados(cfg["datos"])
-    candidatos = agregar_rezago(df)  # el rezago necesita el año anterior, aunque el modelo no lo use
-    candidatos = candidatos[candidatos["periodo"] == inf["anio"]]
-    lote = candidatos.sample(n=min(inf["tamano_lote"], len(candidatos)), random_state=inf.get("semilla"))
-    print(f"Lote de {len(lote)} establecimientos de {inf['anio']} (de {len(candidatos)} disponibles)")
+    pool = agregar_rezago(df)  # el rezago necesita el año anterior, aunque el modelo no lo use
+    pool = pool[pool["periodo"] == cfg["division"]["anio_prueba"]]
+    base = pool.sample(n=min(inf["tamano_lote"], len(pool)), random_state=inf.get("semilla"))
+    p75 = float(construir_referencia(df, cfg)[OBJETIVO].quantile(0.75))
+    lote = emular_drift(base, pool, inf["nivel_drift"], inf.get("semilla"), p75)
+    print(f"Lote de {len(lote)} establecimientos de {cfg['division']['anio_prueba']} con drift "
+          f"{inf['nivel_drift']} (P75 de entrenamiento: {p75:,.0f})")
     return lote
 
 
@@ -67,7 +76,17 @@ def predecir(modelo, lote, cfg):
     """Imputa la producción y la compara con la reportada. Guarda un CSV con la fecha de hoy."""
     # El modelo solo ve sus variables de entrada (feature_names_in_): nunca la producción reportada.
     variables = calcular_variables(lote.drop(columns=[OBJETIVO]))
-    pred_log = modelo.predict(variables[list(modelo.feature_names_in_)])
+    columnas = list(modelo.feature_names_in_)
+    pred_log = modelo.predict(variables[columnas])
+
+    # Copia del lote puntuado (mismas columnas que vio el modelo + etiqueta real) para los flows de drift.
+    copia = variables[columnas].copy()
+    copia[OBJETIVO] = lote[OBJETIVO].to_numpy()
+    copia[IDENTIFICADORES_LOTE] = lote[IDENTIFICADORES_LOTE].to_numpy()
+    destino = ruta_lote(cfg, cfg["inferencia"]["nivel_drift"])
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    copia.to_csv(destino, index=False)
+    print(f"Copia del lote guardada en {destino} ({len(copia)} filas)")
 
     resultado = lote[["nordest", "periodo", "dpto", "ciiu4"]].copy()
     resultado["produccion_estimada"] = np.exp(pred_log).round()
@@ -77,7 +96,7 @@ def predecir(modelo, lote, cfg):
 
     carpeta = Path(cfg["inferencia"]["carpeta_salida"])
     carpeta.mkdir(parents=True, exist_ok=True)
-    ruta = carpeta / f"predicciones_{date.today().isoformat()}.csv"
+    ruta = carpeta / f"predicciones_{date.today().isoformat()}_nivel_{float(cfg['inferencia']['nivel_drift']):.1f}.csv"
     resultado.to_csv(ruta, index=False)
     print(f"Predicciones guardadas en {ruta}")
 
@@ -97,7 +116,9 @@ def registrar_inferencia(version, run_id_entrenamiento, ruta, metricas, cfg):
         mlflow.set_tag("fase", "inferencia")
         mlflow.set_tag("modelo_version", version)
         mlflow.set_tag("modelo_run_id", run_id_entrenamiento)
-        mlflow.log_params({"anio": cfg["inferencia"]["anio"], "tamano_lote": cfg["inferencia"]["tamano_lote"],
+        mlflow.set_tag("nivel_drift", cfg["inferencia"]["nivel_drift"])
+        mlflow.log_params({"anio": cfg["division"]["anio_prueba"], "tamano_lote": cfg["inferencia"]["tamano_lote"],
+                           "nivel_drift": cfg["inferencia"]["nivel_drift"],
                            "umbral_alerta": cfg["inferencia"]["umbral_alerta"]})
         mlflow.log_metrics(metricas)
         mlflow.log_artifact(ruta)
@@ -121,6 +142,7 @@ def inferencia_flow(config: str = CONFIG):
         key="inferencia-eam",
         markdown=(
             f"## Inferencia diaria: {date.today().isoformat()}\n\n"
+            f"- Nivel de drift emulado: {cfg['inferencia']['nivel_drift']}\n"
             f"- Modelo: `{cfg['registro']['nombre_modelo']}` versión **{version}** (champion)\n"
             f"- Establecimientos imputados: {metricas['filas_predichas']}\n"
             f"- MAE (log) frente a lo reportado: {metricas['mae_log_lote']:.4f}\n"

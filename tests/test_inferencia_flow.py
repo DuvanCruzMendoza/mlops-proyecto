@@ -17,7 +17,7 @@ def test_inferencia_usa_el_champion_y_guarda_el_csv_del_dia(entorno):
     r = inferencia_flow(entorno["config"])
 
     assert r["version"] == entrenamiento["version_champion"]
-    assert Path(r["ruta"]).name == f"predicciones_{date.today().isoformat()}.csv"
+    assert Path(r["ruta"]).name == f"predicciones_{date.today().isoformat()}_nivel_0.0.csv"
     pred = pd.read_csv(r["ruta"])
     assert len(pred) == 50
     assert {"nordest", "produccion_estimada", "produccion_reportada", "alerta"} <= set(pred.columns)
@@ -43,3 +43,15 @@ def test_inferencia_sigue_al_nuevo_champion_sin_cambiar_codigo(entorno):
 def test_inferencia_sin_champion_falla(entorno):
     with pytest.raises(MlflowException):
         inferencia_flow(entorno["config"])
+
+
+def test_inferencia_guarda_copia_del_lote_con_drift_y_etiquetas(entorno):
+    entrenamiento_flow(entorno["config"], entorno["features"])
+    editar_yaml(entorno["config"], {"inferencia": {"nivel_drift": 0.6}})
+    r = inferencia_flow(entorno["config"])
+
+    lote = pd.read_csv(Path(entorno["dir"]) / "monitoreo" / "lotes" / "lote_nivel_0.6.csv")
+    assert len(lote) == 50
+    assert {"PRODBIND", "nordest", "periodo", "l_SALARPER"} <= set(lote.columns)
+    assert lote["PRODBIND"].notna().all()
+    assert mlflow.get_run(r["run_id"]).data.tags["nivel_drift"] == "0.6"
