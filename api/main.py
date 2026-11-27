@@ -27,21 +27,26 @@ CONFIG = "configs/config.yaml"
 estado = {}  # modelo cargado, nombre y versión
 
 
-@asynccontextmanager
-async def lifespan(app):
-    """Al arrancar: carga el champion desde MLflow."""
-    with open(CONFIG, encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
+def cargar_modelo_api(cfg):
+    """Carga el champion desde MLflow. Separada del arranque para poder reemplazarla en las pruebas."""
     nombre = cfg["registro"]["nombre_modelo"]
     mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", cfg["mlflow"]["tracking_uri"]))
     version = MlflowClient().get_model_version_by_alias(nombre, "champion")
-    estado.update(
-        modelo=mlflow.sklearn.load_model(f"models:/{nombre}@champion"),
-        nombre=nombre,
-        version=str(version.version),
-        run_id=version.run_id,
-    )
-    print(f"API lista con {nombre} versión {estado['version']}")
+    return {
+        "modelo": mlflow.sklearn.load_model(f"models:/{nombre}@champion"),
+        "nombre": nombre,
+        "version": str(version.version),
+        "run_id": version.run_id,
+    }
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """Al arrancar: carga el champion (cargar_modelo_api)."""
+    with open(CONFIG, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    estado.update(cargar_modelo_api(cfg))
+    print(f"API lista con {estado['nombre']} versión {estado['version']}")
     yield
     estado.clear()
 
