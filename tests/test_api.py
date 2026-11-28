@@ -53,3 +53,53 @@ def test_al_reiniciar_la_api_usa_el_nuevo_champion(config_api):
     entrenamiento_flow(config_api["config"], config_api["features"])
     with TestClient(app) as cliente:  # "reinicio": nuevo arranque de la API
         assert cliente.post("/predict", json=EJEMPLO).json()["version_modelo"] == "2"
+
+
+# ---------- Actividad 3: API con un modelo falso (sin MLflow) ----------
+import numpy as np  # noqa: E402
+
+from scripts.features import REZAGO  # noqa: E402
+
+
+class ModeloFalso:
+    """Imita al champion: declara sus columnas y devuelve siempre log(producción) = 15."""
+
+    def __init__(self, columnas):
+        self.feature_names_in_ = np.array(columnas)
+
+    def predict(self, X):
+        assert list(X.columns) == list(self.feature_names_in_)
+        return np.full(len(X), 15.0)
+
+
+@pytest.fixture
+def cliente_falso(monkeypatch):
+    columnas = ["l_PERSOCU", "l_SALARPER", "dpto", "ciiu2", "ciiu4", *REZAGO]
+    falso = {"modelo": ModeloFalso(columnas), "nombre": "modelo-falso", "version": "7", "run_id": "abc"}
+    monkeypatch.setattr("api.main.cargar_modelo_api", lambda cfg: falso)  # MLflow nunca se llama
+    with TestClient(app) as cliente:
+        yield cliente
+
+
+def test_health_con_modelo_falso(cliente_falso):
+    r = cliente_falso.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"estado": "ok", "modelo": "modelo-falso", "version": "7"}
+
+
+def test_predict_con_modelo_falso(cliente_falso):
+    r = cliente_falso.post("/predict", json=EJEMPLO)
+    assert r.status_code == 200
+    assert r.json()["produccion_estimada"] == round(float(np.exp(15.0)))
+    assert r.json()["version_modelo"] == "7"
+
+
+def test_predict_rechaza_personal_negativo(cliente_falso):
+    assert cliente_falso.post("/predict", json={**EJEMPLO, "PERSOCU": -1}).status_code == 422
+
+
+def test_predict_sin_datos_del_anio_anterior_explica_que_falta(cliente_falso):
+    sin_rezago = {k: v for k, v in EJEMPLO.items() if not k.endswith("_ant")}
+    r = cliente_falso.post("/predict", json=sin_rezago)
+    assert r.status_code == 422
+    assert "año anterior" in r.json()["detail"]
