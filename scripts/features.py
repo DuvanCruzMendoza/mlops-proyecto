@@ -117,12 +117,23 @@ def linea_base(train, test, usar_rezago):
 
 
 def calcular_metricas(y_log, pred_log):
-    """Métricas en escala log y en pesos (error porcentual absoluto)."""
+    """Métricas en escala log y en pesos. Los errores porcentuales se calculan sobre la producción real.
+
+    - MAPE / MedAPE: media / mediana de |pred - real| / real.
+    - sMAPE / sMedAPE: versión simétrica, |pred - real| / ((|real| + |pred|) / 2), acotada entre 0 y 2.
+    La mediana (MedAPE) es robusta a los establecimientos muy grandes; la media (MAPE) no.
+    """
     y_log, pred_log = np.asarray(y_log), np.asarray(pred_log)
-    error_pct = np.abs(np.exp(pred_log - y_log) - 1)
+    real, pred = np.exp(y_log), np.exp(pred_log)
+    error_pct = np.abs(pred - real) / real
+    error_simetrico = np.abs(pred - real) / ((np.abs(real) + np.abs(pred)) / 2)
     return {
         "mae_log": float(np.mean(np.abs(pred_log - y_log))),
         "rmse_log": float(np.sqrt(np.mean((pred_log - y_log) ** 2))),
-        "mdape": float(np.median(error_pct)),                    # error porcentual mediano
+        "mape": float(np.mean(error_pct)),
+        "smape": float(np.mean(error_simetrico)),
+        "mdape": float(np.median(error_pct)),                    # MedAPE: error porcentual mediano
+        "smdape": float(np.median(error_simetrico)),             # sMedAPE
+        "mae_pesos": float(np.mean(np.abs(pred - real))),        # en las unidades de PRODBIND
         "pct_error_menor_20": float(np.mean(error_pct < 0.20)),  # % de establecimientos con error < 20 %
     }
